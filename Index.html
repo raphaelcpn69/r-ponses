@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Réponses Questionnaires — Culture Financière</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --blue:       #1d4ed8;
+      --blue-light: #eff6ff;
+      --blue-mid:   #bfdbfe;
+      --blue-dark:  #1e3a8a;
+      --text:       #1e293b;
+      --muted:      #64748b;
+      --border:     #e2e8f0;
+      --bg:         #f1f5f9;
+      --white:      #ffffff;
+      --green:      #059669;
+      --red:        #dc2626;
+    }
+    body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; padding: 32px 16px 80px; }
+
+    .page-header { max-width: 1100px; margin: 0 auto 28px; display: flex; align-items: flex-end; justify-content: space-between; flex-wrap: wrap; gap: 16px; }
+    .page-header h1 { font-family: 'DM Serif Display', serif; font-size: 1.9rem; font-weight: 400; color: var(--blue-dark); line-height: 1.1; }
+    .page-header p { font-size: .82rem; color: var(--muted); margin-top: 4px; }
+    .header-actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+
+    .btn { padding: 9px 20px; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: .82rem; font-weight: 600; cursor: pointer; border: none; transition: all .16s; }
+    .btn-primary { background: var(--blue); color: white; box-shadow: 0 2px 6px rgba(29,78,216,.25); }
+    .btn-primary:hover { background: #1e40af; }
+    .btn-outline { background: var(--white); color: var(--text); border: 1.5px solid var(--border); }
+    .btn-outline:hover { border-color: #94a3b8; }
+    .btn-danger { background: #fef2f2; color: var(--red); border: 1.5px solid #fecaca; }
+    .btn-danger:hover { background: #fee2e2; }
+
+    .loading-state { max-width: 400px; margin: 80px auto; text-align: center; }
+    .loading-spinner { width: 36px; height: 36px; border: 3px solid var(--blue-mid); border-top-color: var(--blue); border-radius: 50%; animation: spin .7s linear infinite; margin: 0 auto 16px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-state p { color: var(--muted); font-size: .9rem; }
+
+    .stats-row { max-width: 1100px; margin: 0 auto 28px; display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; }
+    .stat-card { background: var(--white); border-radius: 12px; padding: 20px 22px; box-shadow: 0 1px 3px rgba(0,0,0,.05); }
+    .stat-card .value { font-family: 'DM Serif Display', serif; font-size: 2.4rem; color: var(--blue); line-height: 1; margin-bottom: 4px; }
+    .stat-card .label { font-size: .78rem; color: var(--muted); font-weight: 500; }
+
+    .empty-state { max-width: 480px; margin: 60px auto; text-align: center; background: var(--white); border-radius: 16px; padding: 48px 40px; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
+    .empty-icon { font-size: 3rem; margin-bottom: 16px; }
+    .empty-state h2 { font-size: 1.1rem; margin-bottom: 8px; }
+    .empty-state p { font-size: .85rem; color: var(--muted); line-height: 1.7; }
+
+    .section-title { max-width: 1100px; margin: 0 auto 16px; font-size: .72rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+
+    .info-banner { max-width: 1100px; margin: 0 auto 24px; background: #fefce8; border: 1.5px solid #fde68a; border-radius: 10px; padding: 14px 20px; font-size: .83rem; color: #92400e; display: flex; align-items: center; gap: 10px; }
+
+    .charts-grid { max-width: 1100px; margin: 0 auto 36px; display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; }
+    .chart-card { background: var(--white); border-radius: 14px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,.05); }
+    .chart-card h3 { font-size: .9rem; font-weight: 700; margin-bottom: 4px; }
+    .chart-sub { font-size: .75rem; color: var(--muted); margin-bottom: 18px; }
+    .chart-card canvas { max-height: 240px; }
+    .chart-card.wide { grid-column: 1 / -1; }
+    .chart-card.wide canvas { max-height: 260px; }
+
+    .responses-list { max-width: 1100px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px; }
+    .response-card { background: var(--white); border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.05); overflow: hidden; }
+    .response-header { padding: 16px 22px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; transition: background .15s; user-select: none; }
+    .response-header:hover { background: var(--bg); }
+    .response-meta { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .participant-badge { background: var(--blue-light); color: var(--blue); font-size: .72rem; font-weight: 700; padding: 4px 10px; border-radius: 99px; }
+    .response-timestamp { font-size: .78rem; color: var(--muted); }
+    .response-answered { font-size: .75rem; color: var(--muted); }
+    .chevron { color: var(--muted); transition: transform .2s; }
+    .chevron.open { transform: rotate(180deg); }
+    .response-body { display: none; border-top: 1px solid var(--border); padding: 20px 22px; }
+    .response-body.open { display: block; }
+    .qa-item { margin-bottom: 16px; }
+    .qa-item:last-child { margin-bottom: 0; }
+    .qa-q { font-size: .75rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 4px; }
+    .qa-a { font-size: .875rem; color: var(--text); background: var(--bg); padding: 10px 14px; border-radius: 8px; white-space: pre-wrap; }
+    .qa-a.empty { color: #94a3b8; font-style: italic; }
+
+    @media (max-width: 640px) { .page-header { flex-direction: column; align-items: flex-start; } .charts-grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+
+<div class="page-header">
+  <div>
+    <h1>Réponses Questionnaires</h1>
+    <p>Tableau de bord — Culture Financière</p>
+  </div>
+  <div class="header-actions">
+    <span id="lastRefresh" style="font-size:.75rem;color:var(--muted)"></span>
+    <button class="btn btn-outline" onclick="loadAll()">↻ Actualiser</button>
+  </div>
+</div>
+
+<!-- Loading -->
+<div class="loading-state" id="loadingState">
+  <div class="loading-spinner"></div>
+  <p>Chargement des réponses…</p>
+</div>
+
+<!-- Stats -->
+<div class="stats-row" id="statsRow" style="display:none">
+  <div class="stat-card"><div class="value" id="statTotal">0</div><div class="label">Participants</div></div>
+  <div class="stat-card"><div class="value" id="statAvg">—</div><div class="label">Réponses moy. / participant</div></div>
+  <div class="stat-card"><div class="value" id="statLast">—</div><div class="label">Dernier envoi</div></div>
+  <div class="stat-card"><div class="value" id="statNeeded">—</div><div class="label">Pour analyse complète</div></div>
+</div>
+
+<!-- Empty -->
+<div class="empty-state" id="emptyState" style="display:none">
+  <div class="empty-icon">📭</div>
+  <h2>Aucune réponse pour l'instant</h2>
+  <p>Les réponses apparaîtront ici dès que des participants auront rempli le questionnaire.<br><br>Partage le lien <strong>questionnaire_participant.html</strong> avec tes participants !</p>
+</div>
+
+<!-- Charts -->
+<div id="chartsSection" style="display:none">
+  <div id="infoBanner" class="info-banner" style="display:none">⚠️ <span id="infoBannerText"></span></div>
+  <div class="section-title">Analyse automatique</div>
+  <div class="charts-grid">
+    <div class="chart-card"><h3>Déjà investi ?</h3><div class="chart-sub">Q7 — Expérience d'investissement</div><canvas id="chartInvested"></canvas></div>
+    <div class="chart-card"><h3>Bases en culture financière ?</h3><div class="chart-sub">Q16 — Connaissance actions, obligations, ETF…</div><canvas id="chartBases"></canvas></div>
+    <div class="chart-card"><h3>Intérêt pour la plateforme</h3><div class="chart-sub">Q18 — Réaction à l'idée de la plateforme</div><canvas id="chartPlatform"></canvas></div>
+    <div class="chart-card"><h3>Sécurité vs Prise de risque</h3><div class="chart-sub">Q14 — Profil de préférence</div><canvas id="chartRisk"></canvas></div>
+    <div class="chart-card"><h3>Méthodes d'apprentissage préférées</h3><div class="chart-sub">Q4 — Comment ils veulent apprendre</div><canvas id="chartLearning"></canvas></div>
+    <div class="chart-card"><h3>Ce qui leur manque</h3><div class="chart-sub">Q10 — Freins à l'investissement</div><canvas id="chartMissing"></canvas></div>
+    <div class="chart-card wide"><h3>Mots associés à "finance" et "culture financière"</h3><div class="chart-sub">Q1 + Q19 — Premiers mots qui viennent à l'esprit (fréquence)</div><canvas id="chartWords"></canvas></div>
+  </div>
+</div>
+
+<!-- Responses -->
+<div id="responsesSection" style="display:none">
+  <div class="section-title" style="max-width:1100px;margin:0 auto 16px">Réponses individuelles</div>
+  <div class="responses-list" id="responsesList"></div>
+</div>
+
+<script>
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwF-TIRGnIQ72ugJWPm33ikHQU00nGDSUCQNQE-RIW2PyOlaNva0M4x-A0E8HvhgoSrjQ/exec';
+const MIN_FOR_CHARTS = 3;
+const RECOMMENDED = 10;
+const PALETTE = ['#1d4ed8','#3b82f6','#60a5fa','#93c5fd','#bfdbfe','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899','#06b6d4','#84cc16'];
+const PIE_PALETTE = ['#1d4ed8','#3b82f6','#93c5fd','#c7d2fe','#a5b4fc','#6ee7b7'];
+
+const QUESTION_LABELS = [
+  "Premiers mots — Finance","Crise financière","Types d'investissements","Méthodes d'apprentissage",
+  "Nécessité d'apprendre","Vision 20 ans","Déjà investi ?","Peurs marchés financiers",
+  "Scénario 50 000 €","Ce qui manque","Pire scénario","Sujet prioritaire",
+  "Épargner vs Investir","Sécurité ou risque ?","Attitude entourage","Bases financières ?",
+  "Sources de recherche","Intérêt plateforme","3 mots — Culture financière"
+];
+
+let charts = {};
+
+async function loadAll() {
+  document.getElementById('loadingState').style.display = 'block';
+  document.getElementById('statsRow').style.display = 'none';
+  document.getElementById('emptyState').style.display = 'none';
+  document.getElementById('chartsSection').style.display = 'none';
+  document.getElementById('responsesSection').style.display = 'none';
+
+  let responses = [];
+  try {
+    const res = await fetch(SCRIPT_URL + '?t=' + Date.now());
+    const text = await res.text();
+    responses = JSON.parse(text);
+    if (!Array.isArray(responses)) responses = [];
+  } catch(e) {
+    document.getElementById('loadingState').innerHTML = `<p style="color:#dc2626">❌ Impossible de charger les données.<br>Vérifie ta connexion et actualise.</p>`;
+    return;
+  }
+
+  document.getElementById('loadingState').style.display = 'none';
+  document.getElementById('lastRefresh').textContent = 'Mis à jour : ' + new Date().toLocaleTimeString('fr-FR');
+
+  const n = responses.length;
+
+  if (n === 0) { document.getElementById('emptyState').style.display = 'block'; return; }
+
+  // Stats
+  document.getElementById('statsRow').style.display = 'grid';
+  document.getElementById('statTotal').textContent = n;
+  const avgAns = (responses.reduce((a, r) => a + (r.answers || []).filter(x => x && x.trim()).length, 0) / n).toFixed(1);
+  document.getElementById('statAvg').textContent = avgAns;
+  document.getElementById('statLast').textContent = (responses[responses.length-1].timestamp || '').split(' ')[0] || '—';
+  const needed = Math.max(0, RECOMMENDED - n);
+  document.getElementById('statNeeded').textContent = needed > 0 ? needed + ' encore' : '✓ Atteint';
+
+  // Charts
+  document.getElementById('chartsSection').style.display = 'block';
+  const banner = document.getElementById('infoBanner');
+  if (n < MIN_FOR_CHARTS) {
+    banner.style.display = 'flex';
+    document.getElementById('infoBannerText').textContent = `Il faut au moins ${MIN_FOR_CHARTS} réponses pour les graphiques. Tu en as ${n}.`;
+    document.querySelector('.charts-grid').style.display = 'none';
+  } else {
+    document.querySelector('.charts-grid').style.display = 'grid';
+    banner.style.display = n < RECOMMENDED ? 'flex' : 'none';
+    if (n < RECOMMENDED) document.getElementById('infoBannerText').textContent = `Analyse avec ${n} participants — plus fiable à partir de ${RECOMMENDED}.`;
+    buildCharts(responses);
+  }
+
+  // List
+  document.getElementById('responsesSection').style.display = 'block';
+  buildResponsesList(responses);
+}
+
+function buildCharts(responses) {
+  function destroy(id) { if (charts[id]) { charts[id].destroy(); delete charts[id]; } }
+
+  // Q7 - Déjà investi
+  destroy('chartInvested');
+  const inv = tally(responses.map(r => detectYesNo((r.answers||[])[6])));
+  charts['chartInvested'] = makePie('chartInvested', inv);
+
+  // Q16 - Bases
+  destroy('chartBases');
+  const bases = { 'Oui':0, 'Partiel':0, 'Non':0, 'Autre':0 };
+  responses.forEach(r => {
+    const t = ((r.answers||[])[15]||'').toLowerCase();
+    if (!t) { bases['Autre']++; return; }
+    if (/(un peu|vaguement|pas vraiment|j'ai entendu|partiellement|notion|approxim)/.test(t)) bases['Partiel']++;
+    else if (/(non|jamais|aucune|pas du tout|je ne sais pas)/.test(t)) bases['Non']++;
+    else if (/(oui|je sais|je connais|etf|action|obligation|absolument)/.test(t)) bases['Oui']++;
+    else bases['Autre']++;
+  });
+  charts['chartBases'] = makePie('chartBases', bases);
+
+  // Q18 - Plateforme
+  destroy('chartPlatform');
+  const plat = { 'Oui':0, 'Peut-être':0, 'Non':0, 'Autre':0 };
+  responses.forEach(r => {
+    const t = ((r.answers||[])[17]||'').toLowerCase();
+    if (!t) { plat['Autre']++; return; }
+    if (/(peut-être|ça dépend|pourquoi pas|pas sûr|sous conditions)/.test(t)) plat['Peut-être']++;
+    else if (/(non|pas vraiment|pas intéressé)/.test(t)) plat['Non']++;
+    else if (/(oui|absolument|tout à fait|bien sûr|ça m'intéresse|clairement|j'adorerais|carrément)/.test(t)) plat['Oui']++;
+    else plat['Autre']++;
+  });
+  charts['chartPlatform'] = makePie('chartPlatform', plat);
+
+  // Q14 - Risque
+  destroy('chartRisk');
+  const risk = { 'Sécurité':0, 'Risque / Indépendance':0, 'Équilibre':0, 'Autre':0 };
+  responses.forEach(r => {
+    const t = ((r.answers||[])[13]||'').toLowerCase();
+    const hasSec = /(sécurité|sécurisé|stable|garantie|rassurant|prudent|moins de risque)/.test(t);
+    const hasRisk = /(risque|indépendance rapide|liberté financière|gagner plus|rentabilité)/.test(t);
+    const hasBoth = /(les deux|équilibre|milieu|compromis|entre les deux)/.test(t);
+    if (!t) risk['Autre']++;
+    else if (hasBoth || (hasSec && hasRisk)) risk['Équilibre']++;
+    else if (hasSec) risk['Sécurité']++;
+    else if (hasRisk) risk['Risque / Indépendance']++;
+    else risk['Autre']++;
+  });
+  charts['chartRisk'] = makePie('chartRisk', risk);
+
+  // Q4 - Apprentissage
+  destroy('chartLearning');
+  const learningKw = [
+    { label:'Vidéos', patterns:['vidéo','video','youtube','tiktok','regarder'] },
+    { label:'Cours / Formation', patterns:['cours','formation','module','programme','leçon'] },
+    { label:'Exercices / Quiz', patterns:['exercice','quiz','pratique','entraîne','jeu'] },
+    { label:'Amis / Entourage', patterns:['ami','entourage','proche','famille','discuter'] },
+    { label:'Articles / Infos', patterns:['article','info','journal','news','lire','blog'] },
+    { label:'Podcast', patterns:['podcast','audio','écouter'] },
+    { label:'Expert / Pro', patterns:['expert','conseiller','professionnel','mentor'] },
+    { label:'Application', patterns:['application','appli','app','plateforme'] },
+  ];
+  const lc = countKeywords(responses.map(r => (r.answers||[])[3]||''), learningKw);
+  charts['chartLearning'] = makeBar('chartLearning', Object.keys(lc), Object.values(lc));
+
+  // Q10 - Ce qui manque
+  destroy('chartMissing');
+  const missingKw = [
+    { label:'Temps', patterns:['temps','occupé','disponibilité'] },
+    { label:'Argent / Capital', patterns:['argent','capital','moyens','économies','budget'] },
+    { label:'Confiance', patterns:['confiance','peur','doute','incertitude','rassurer','sécurité psycho'] },
+    { label:'Connaissances', patterns:['connaissance','formation','comprendre','savoir','éducation','compétence','base'] },
+    { label:'Motivation', patterns:['motivation','envie','intérêt'] },
+    { label:'Accompagnement', patterns:['accompagnement','guide','mentor','conseiller','aide'] },
+  ];
+  const mc = countKeywords(responses.map(r => (r.answers||[])[9]||''), missingKw);
+  charts['chartMissing'] = makeBar('chartMissing', Object.keys(mc), Object.values(mc));
+
+  // Q1 + Q19 - Mots
+  destroy('chartWords');
+  const allTexts = responses.flatMap(r => [(r.answers||[])[0]||'', (r.answers||[])[18]||'']);
+  const freq = getWordFrequency(allTexts);
+  if (freq.length > 0) charts['chartWords'] = makeBar('chartWords', freq.map(f=>f[0]), freq.map(f=>f[1]), true);
+}
+
+function makePie(id, obj) {
+  const labels = Object.keys(obj).filter(k => obj[k] > 0);
+  const data = labels.map(k => obj[k]);
+  return new Chart(document.getElementById(id).getContext('2d'), {
+    type: 'doughnut',
+    data: { labels, datasets: [{ data, backgroundColor: PIE_PALETTE, borderWidth: 2, borderColor: '#fff' }] },
+    options: { plugins: { legend: { position:'bottom', labels: { font:{family:'DM Sans',size:11}, padding:12 } } }, cutout:'55%' }
+  });
+}
+
+function makeBar(id, labels, data, horizontal=false) {
+  return new Chart(document.getElementById(id).getContext('2d'), {
+    type: 'bar',
+    data: { labels, datasets: [{ data, backgroundColor: PALETTE.slice(0, labels.length), borderRadius: 6, borderSkipped: false }] },
+    options: {
+      indexAxis: horizontal ? 'y' : 'x',
+      plugins: { legend: { display:false } },
+      scales: {
+        x: { grid:{display:false}, ticks:{font:{family:'DM Sans',size:11}} },
+        y: { beginAtZero:true, ticks:{font:{family:'DM Sans',size:11},stepSize:1}, grid:{color:'#f1f5f9'} }
+      }
+    }
+  });
+}
+
+function tally(arr) {
+  const out = {};
+  arr.forEach(v => { out[v] = (out[v]||0) + 1; });
+  return out;
+}
+
+function detectYesNo(text) {
+  if (!text || !text.trim()) return 'Autre / Mitigé';
+  const t = text.toLowerCase().trim();
+  if (/^(non|no|jamais|pas du tout)/.test(t) || /(pas encore|jamais investi|aucun investissement|n'ai pas)/.test(t)) return 'Non';
+  if (/^(oui|ouais|absolument|tout à fait|bien sûr|j'ai)/.test(t) || /(j'ai déjà|oui j'ai|j'ai investi|j'en ai fait)/.test(t)) return 'Oui';
+  return 'Autre / Mitigé';
+}
+
+function countKeywords(texts, keywords) {
+  const counts = {};
+  keywords.forEach(k => { counts[k.label] = 0; });
+  texts.forEach(text => {
+    if (!text) return;
+    const t = text.toLowerCase();
+    keywords.forEach(k => { if (k.patterns.some(p => t.includes(p))) counts[k.label]++; });
+  });
+  return counts;
+}
+
+const STOP = new Set(['le','la','les','un','une','des','de','du','et','en','à','au','aux','je','tu','il','elle','nous','vous','ils','elles','me','te','se','mon','ton','son','ma','ta','sa','mes','tes','ses','que','qui','quoi','où','quand','comment','pourquoi','ou','mais','donc','or','ni','car','si','est','sont','été','être','avoir','faire','dans','sur','par','pour','avec','sans','sous','entre','vers','chez','pas','ne','plus','très','aussi','bien','tout','tous','toute','toutes','cette','ce','cet','ces','même','comme','ça','ca','on','jai','moi','suis','meme','aux','cela','leur','leurs','lui','dont','alors','peu','rien','the','and','of']);
+
+function getWordFrequency(texts) {
+  const counts = {};
+  texts.forEach(text => {
+    if (!text) return;
+    text.toLowerCase().replace(/[^a-zàâäéèêëîïôùûüç\s'-]/gi,' ').split(/[\s,;.!?()"«»]+/).filter(w => w.length > 2 && !STOP.has(w)).forEach(w => { counts[w] = (counts[w]||0)+1; });
+  });
+  return Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,14);
+}
+
+function buildResponsesList(responses) {
+  const container = document.getElementById('responsesList');
+  container.innerHTML = '';
+  [...responses].reverse().forEach((r, revIdx) => {
+    const idx = responses.length - revIdx;
+    const answers = r.answers || [];
+    const answeredCount = answers.filter(a => a && a.trim()).length;
+    const card = document.createElement('div');
+    card.className = 'response-card';
+    const answersHTML = QUESTION_LABELS.map((label, qi) => {
+      const ans = answers[qi] || '';
+      return `<div class="qa-item"><div class="qa-q">Q${qi+1} — ${label}</div><div class="qa-a ${!ans.trim()?'empty':''}">${ans.trim()||'Non répondu'}</div></div>`;
+    }).join('');
+    card.innerHTML = `
+      <div class="response-header" onclick="toggleResponse(this)">
+        <div class="response-meta">
+          <span class="participant-badge">Participant ${idx}</span>
+          <span class="response-timestamp">📅 ${r.timestamp||'—'}</span>
+          <span class="response-answered">• ${answeredCount}/19 réponses</span>
+        </div>
+        <span class="chevron">▾</span>
+      </div>
+      <div class="response-body">${answersHTML}</div>
+    `;
+    container.appendChild(card);
+  });
+}
+
+function toggleResponse(header) {
+  const body = header.nextElementSibling;
+  const chevron = header.querySelector('.chevron');
+  const open = body.classList.toggle('open');
+  chevron.classList.toggle('open', open);
+}
+
+loadAll();
+</script>
+</body>
+</html>
